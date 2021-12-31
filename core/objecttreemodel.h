@@ -59,6 +59,8 @@ private:
     QModelIndex indexForObject(QObject *object) const;
 
 private:
+    // this map contains parent->children where parent hasn't been added to the model yet
+    QHash<QObject *, QVector<QObject*>> m_pendingReparentMap;
     QHash<QObject *, QObject *> m_childParentMap;
     QHash<QObject *, QVector<QObject *> > m_parentChildMap;
 };

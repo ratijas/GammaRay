@@ -112,6 +112,18 @@ void ObjectTreeModel::objectAdded(QObject *obj)
     m_childParentMap.insert(obj, parentObject(obj));
 
     endInsertRows();
+
+    // Check if there are any objects that need to be reparented to obj
+    {
+        auto it = m_pendingReparentMap.find(obj);
+        if (it != m_pendingReparentMap.end()) {
+            const auto children = m_pendingReparentMap.value(obj);
+            for (QObject *c : children) {
+                objectReparented(c);
+            }
+            m_pendingReparentMap.remove(obj);
+        }
+    }
 }
 
 void ObjectTreeModel::objectRemoved(QObject *obj)
@@ -188,7 +200,16 @@ void ObjectTreeModel::objectReparented(QObject *obj)
     IF_DEBUG(cout << "actually reparenting! " << hex << obj << " old parent: " << oldParent << " new parent: " << parentObject(
                  obj) << dec << endl;
              )
-    const auto destParent = indexForObject(parentObject(obj));
+
+    auto *parentObj = parentObject(obj);
+    const auto destParent = indexForObject(parentObj);
+
+    // parent object doesn't exist in the model yet
+    if (parentObj && !destParent.isValid() && !Probe::instance()->isValidObject(parentObject(obj))) {
+        m_pendingReparentMap[parentObject(obj)] << obj;
+        return;
+    }
+
     Q_ASSERT(destParent.isValid() || !parentObject(obj));
 
     QVector<QObject *> &newSiblings = m_parentChildMap[parentObject(obj)];
